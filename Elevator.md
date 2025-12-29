@@ -1333,6 +1333,18 @@ public class SCANScheduler implements Scheduler {
 | **Adapter**         | PLCAdapter               | Bridge software and hardware         |
 | **Template Method** | Scheduler base class     | Share common scheduling flow         |
 
+## 📦 Data Structures Summary (Interview Friendly)
+
+| Component            | Data Structure | Reason                         |
+|---------------------|----------------|--------------------------------|
+| Elevator queues     | `TreeSet`      | Maintains ordered floors       |
+| Requests            | `Queue`        | FIFO intake handling           |
+| Elevators           | `List`         | Easy iteration and traversal   |
+| States              | `Enum`         | Safe and explicit transitions  |
+| Scheduler lookup    | Strategy       | Extensible algorithm selection |
+| Sensors             | DTO            | Simple data transport object   |
+
+
 
 ### 7.3 Scalability Calculations
 
