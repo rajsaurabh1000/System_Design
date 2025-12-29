@@ -1319,6 +1319,21 @@ public class SCANScheduler implements Scheduler {
 }
 ```
 
+## 🧩 Design Patterns Used
+
+| Pattern             | Where Used               | Why                                  |
+|---------------------|--------------------------|--------------------------------------|
+| **Strategy**        | SCAN / LOOK / SSTF       | Plug different scheduling algorithms |
+| **State**           | ElevatorState, DoorState | Clean and deterministic state changes|
+| **Command**         | Request objects          | Encapsulate user actions             |
+| **Observer**        | UI / Monitoring          | Push real-time updates               |
+| **Facade**          | ElevatorController       | Single entry point for system ops    |
+| **Factory**         | SchedulerFactory         | Create scheduling strategies         |
+| **Singleton**       | ElevatorController       | Ensure single orchestrator           |
+| **Adapter**         | PLCAdapter               | Bridge software and hardware         |
+| **Template Method** | Scheduler base class     | Share common scheduling flow         |
+
+
 ### 7.3 Scalability Calculations
 
 **Building Specifications**:
