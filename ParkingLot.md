@@ -724,6 +724,43 @@ Example:
 └──────────────────────────────────────────────────────────┘
 ```
 
+## Design Patterns Used
+
+| Pattern | Where Used | Purpose |
+|--------|------------|---------|
+| **Strategy** | SpotAssignmentStrategy (Nearest, Sequential, Priority) | Plug different spot-allocation algorithms |
+| **Factory** | PaymentFactory, SpotStrategyFactory | Create objects without exposing instantiation logic |
+| **Singleton** | ParkingService, PricingConfigManager | Ensure single coordinator instance |
+| **Facade** | ParkingService | Unified interface for entry/exit workflows |
+| **Command** | ParkingTicket, Payment | Encapsulate user actions |
+| **State** | TicketStatus, SpotStatus, GateState | Controlled state transitions |
+| **Observer** | DisplayBoard, AnalyticsService | Push real-time updates |
+| **Adapter** | PaymentGatewayAdapter | Integrate external payment providers |
+| **Template Method** | BaseSpotAssignmentStrategy | Shared algorithm skeleton |
+| **Repository** | ParkingRepository, TicketRepository | Abstract persistence |
+| **DTO** | Request/Response objects | Data transport only |
+| **Builder (optional)** | ParkingTicketBuilder | Construct complex objects safely |
+
+
+## Data Structures Summary
+
+| Component | Data Structure | Reason |
+|----------|----------------|--------|
+| Parking floors | List<ParkingFloor> | Ordered traversal |
+| Parking spots per floor | Map<SpotType, Set<ParkingSpot>> | Fast lookup by type |
+| Available spots | TreeSet / PriorityQueue | Nearest / ordered selection |
+| Occupied spots | HashMap<SpotId, ParkingSpot> | O(1) lookup |
+| Tickets | HashMap<TicketId, ParkingTicket> | Fast retrieval |
+| Active tickets | HashMap<VehicleId, Ticket> | Prevent duplicates |
+| Requests queue | Queue<Request> | FIFO processing |
+| Pricing rules | Map<SpotType, BigDecimal> | Fast rate lookup |
+| Payments | List / Map | Audit & reporting |
+| Display cache | ConcurrentHashMap | Thread-safe reads |
+| Event subscribers | List<Observer> | Publish-subscribe |
+| State enums | Enum | Safe transitions |
+| Time-series data | Append-only list / DB | Analytics |
+
+
 ### 7.4 Scalability Calculations
 
 **Parking Lot Size**: 2000 spots across 5 floors
