@@ -550,146 +550,31 @@ Benefits:
 **Problem**: Individual event processing is expensive
 **Solution**: Micro-batching
 
-```python
-class BatchProcessor:
-    def __init__(self, batch_size=1000, max_wait_ms=100):
-        self.batch_size = batch_size
-        self.max_wait_ms = max_wait_ms
-        self.batch = []
-        self.last_flush = time.time()
-    
-    def add_event(self, event):
-        self.batch.append(event)
-        
-        # Flush if batch full or timeout
-        if (len(self.batch) >= self.batch_size or 
-            (time.time() - self.last_flush) * 1000 > self.max_wait_ms):
-            self.flush()
-    
-    def flush(self):
-        if not self.batch:
-            return
-        
-        # Write batch to storage
-        write_batch_to_storage(self.batch)
-        
-        # Clear batch
-        self.batch = []
-        self.last_flush = time.time()
-
 # Throughput improvement: 100x
 # Individual writes: 1000 events/sec
 # Batch writes: 100,000 events/sec
-```
 
 ### 6.2 Compression
 
 **Problem**: Large data volume
 **Solution**: Compression at multiple levels
 
-```python
-# Level 1: Event payload compression
-def compress_event(event):
-    # Use columnar format (Parquet/ORC)
-    # Benefit: 5-10x compression ratio
-    return parquet.write(event)
 
-# Level 2: Network compression
-# Use gzip/snappy for API requests
-# Benefit: 3-5x size reduction
-
-# Level 3: Storage compression
-# Time-series DB uses delta encoding
-# Benefit: 10-100x compression for metrics
-
-# Overall: 150-5000x total compression
-```
 
 ### 6.3 Hot/Warm/Cold Storage Tiering
 
 **Strategy**:
-```python
-def determine_storage_tier(event):
-    age_days = (datetime.now() - event.timestamp).days
-    
-    if age_days < 7:
-        return "HOT"   # SSD, InfluxDB (expensive, fast)
-    elif age_days < 90:
-        return "WARM"  # HDD, ClickHouse (moderate cost/speed)
-    else:
-        return "COLD"  # S3 Glacier (cheap, slow)
-
-# Cost savings: 90% compared to all-hot storage
-# HOT: $0.10/GB/month
-# WARM: $0.02/GB/month
-# COLD: $0.004/GB/month
-```
 
 ### 6.4 Sampling for Analytics
 
 **Problem**: Too much data to process for real-time analytics
 **Solution**: Adaptive sampling
 
-```python
-def sample_events(stream, target_rate):
-    """
-    Reservoir sampling for high-throughput streams
-    """
-    current_rate = stream.get_rate()
-    
-    if current_rate <= target_rate:
-        # Keep all events
-        return stream
-    
-    # Sample ratio
-    sample_ratio = target_rate / current_rate
-    
-    # Deterministic sampling
-    return stream.filter(lambda e: hash(e.id) % 100 < sample_ratio * 100)
-
-# Example: 10M events/sec -> sample to 1M events/sec
-# 10% sampling, 10x reduction in processing cost
-# Accuracy: ±1% for aggregations
-```
-
 ### 6.5 Approximate Algorithms
 
 **HyperLogLog for Unique Counts**:
-```python
-def count_unique_users_approx(events):
-    """
-    HyperLogLog: Count unique users with 1% error
-    Memory: 1KB (vs 10MB for exact count)
-    """
-    hll = HyperLogLog(precision=14)
-    
-    for event in events:
-        hll.add(event.user_id)
-    
-    return hll.cardinality()
-
-# Memory savings: 10,000x
-# Exact: 1M users * 10 bytes = 10MB
-# HLL: 1KB
-```
 
 **Count-Min Sketch for Frequency**:
-```python
-def top_k_events(events, k=100):
-    """
-    Find top K most frequent event types
-    """
-    cm_sketch = CountMinSketch(width=1000, depth=5)
-    
-    for event in events:
-        cm_sketch.add(event.event_type)
-    
-    # Get top K
-    return cm_sketch.get_top_k(k)
-
-# Memory: O(width * depth) = 5KB
-# vs exact: O(unique_events) = 10MB+
-```
 
 ### 6.6 Indexing Strategy
 
@@ -745,100 +630,14 @@ GROUP BY timestamp, event_type;
 **Problem**: Cascading failures when downstream service fails
 **Solution**: Circuit breaker
 
-```python
-class CircuitBreaker:
-    def __init__(self, failure_threshold=5, timeout=60):
-        self.failure_count = 0
-        self.failure_threshold = failure_threshold
-        self.timeout = timeout
-        self.state = "CLOSED"  # CLOSED, OPEN, HALF_OPEN
-        self.last_failure_time = None
-    
-    def call(self, func, *args):
-        if self.state == "OPEN":
-            if time.time() - self.last_failure_time > self.timeout:
-                self.state = "HALF_OPEN"
-            else:
-                raise CircuitOpenException("Service unavailable")
-        
-        try:
-            result = func(*args)
-            self.on_success()
-            return result
-        except Exception as e:
-            self.on_failure()
-            raise e
-    
-    def on_success(self):
-        self.failure_count = 0
-        self.state = "CLOSED"
-    
-    def on_failure(self):
-        self.failure_count += 1
-        self.last_failure_time = time.time()
-        
-        if self.failure_count >= self.failure_threshold:
-            self.state = "OPEN"
-
-# Usage: Protect against downstream failures
-cb = CircuitBreaker()
-cb.call(write_to_database, data)
-```
-
 ### 6.9 Back-pressure Handling
 
 **Problem**: Producer faster than consumer
 **Solution**: Back-pressure mechanism
 
-```python
-class BackPressureController:
-    def __init__(self, max_queue_size=10000):
-        self.queue = Queue(maxsize=max_queue_size)
-        self.rate_limiter = RateLimiter(rate=1000)  # 1000/sec
-    
-    async def produce(self, event):
-        # Check queue size
-        if self.queue.qsize() > 0.8 * self.queue.maxsize:
-            # Queue almost full, slow down producer
-            await self.rate_limiter.acquire()
-        
-        # Add to queue
-        await self.queue.put(event)
-    
-    async def consume(self):
-        while True:
-            event = await self.queue.get()
-            await process_event(event)
-
-# Alternative: Drop old events (ring buffer)
-# Alternative: Persist to disk and process later
-```
-
 ### 6.10 Data Validation Pipeline
 
 **Multi-stage validation**:
-```python
-def validate_event(event):
-    # Stage 1: Schema validation (fast)
-    if not schema_validator.validate(event):
-        return False, "Invalid schema"
-    
-    # Stage 2: Business logic validation
-    if event.timestamp > time.time() + 3600:
-        return False, "Timestamp in future"
-    
-    # Stage 3: Anomaly detection
-    if is_anomaly(event):
-        log_anomaly(event)
-        return True, "Anomaly detected but accepted"
-    
-    return True, "Valid"
-
-# Pipeline:
-# 1. Fast path: 99% pass schema validation (10μs)
-# 2. Medium path: 0.9% fail schema (100μs)
-# 3. Slow path: 0.1% anomalies (1ms)
-```
 
 ## 7. Low-Level Design (LLD)
 
