@@ -641,83 +641,9 @@ GROUP BY timestamp, event_type;
 
 ## 7. Low-Level Design (LLD)
 
-### 7.1 Class Diagram
 
-```
-┌──────────────────────────────────────────────────────────┐
-│                   IngestionService                       │
-├──────────────────────────────────────────────────────────┤
-│ - kafkaProducer: KafkaProducer                           │
-│ - validator: Validator                                   │
-│ - rateLimiter: RateLimiter                               │
-├──────────────────────────────────────────────────────────┤
-│ + ingestEvents(events: List<Event>): IngestionResult    │
-│ + validateEvent(event: Event): ValidationResult          │
-│ + publishToKafka(event: Event): void                     │
-└──────────────────────────────────────────────────────────┘
+<img width="3303" height="762" alt="image" src="https://github.com/user-attachments/assets/412a2e4b-0153-45b4-adc2-6ecb8d4a98a3" />
 
-┌──────────────────────────────────────────────────────────┐
-│                 StreamProcessor                          │
-├──────────────────────────────────────────────────────────┤
-│ - kafkaConsumer: KafkaConsumer                           │
-│ - transformers: List<Transformer>                        │
-│ - enrichers: List<Enricher>                              │
-│ - aggregators: List<Aggregator>                          │
-├──────────────────────────────────────────────────────────┤
-│ + processStream(): void                                  │
-│ + transform(event: Event): Event                         │
-│ + enrich(event: Event): Event                            │
-│ + aggregate(events: List<Event>): Metric                 │
-└──────────────────────────────────────────────────────────┘
-
-┌──────────────────────────────────────────────────────────┐
-│                   StorageManager                         │
-├──────────────────────────────────────────────────────────┤
-│ - timeSeriesDB: InfluxDBClient                           │
-│ - objectStorage: S3Client                                │
-│ - analyticsDB: ClickHouseClient                          │
-├──────────────────────────────────────────────────────────┤
-│ + writeToTimeSeries(events: List<Event>): void           │
-│ + writeToObjectStorage(events: List<Event>): void        │
-│ + writeToAnalyticsDB(events: List<Event>): void          │
-│ + determineStorageTier(event: Event): StorageTier        │
-└──────────────────────────────────────────────────────────┘
-
-┌──────────────────────────────────────────────────────────┐
-│                    QueryService                          │
-├──────────────────────────────────────────────────────────┤
-│ - queryExecutor: QueryExecutor                           │
-│ - cacheManager: CacheManager                             │
-│ - resultAggregator: ResultAggregator                     │
-├──────────────────────────────────────────────────────────┤
-│ + executeQuery(query: Query): QueryResult                │
-│ + optimizeQuery(query: Query): Query                     │
-│ + cacheResult(query: Query, result: Result): void        │
-└──────────────────────────────────────────────────────────┘
-
-┌──────────────────────────────────────────────────────────┐
-│                  AlertingService                         │
-├──────────────────────────────────────────────────────────┤
-│ - alertRules: List<AlertRule>                            │
-│ - notificationChannels: List<Channel>                    │
-│ - alertState: Map<UUID, AlertState>                      │
-├──────────────────────────────────────────────────────────┤
-│ + evaluateRules(metrics: List<Metric>): List<Alert>      │
-│ + sendNotification(alert: Alert): void                   │
-│ + updateAlertState(alert: Alert): void                   │
-└──────────────────────────────────────────────────────────┘
-
-┌──────────────────────────────────────────────────────────┐
-│                MonitoringService                         │
-├──────────────────────────────────────────────────────────┤
-│ - metricsCollector: MetricsCollector                     │
-│ - healthChecker: HealthChecker                           │
-├──────────────────────────────────────────────────────────┤
-│ + collectMetrics(): Map<string, float>                   │
-│ + checkHealth(): HealthStatus                            │
-│ + detectAnomalies(): List<Anomaly>                       │
-└──────────────────────────────────────────────────────────┘
-```
 
 ### 7.2 Scalability Calculations
 
