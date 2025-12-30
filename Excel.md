@@ -727,79 +727,44 @@ Store AST, evaluate by traversing tree
 
 
 
-Design Patterns Used (Concise)
-
-Strategy → Formula evaluation strategies, sorting, filtering, recalculation logic
-
-Factory → Create Formula parsers, evaluators, exporters (CSV/XLSX/PDF)
-
-Singleton → WorkbookManager, CollaborationManager, CacheManager
-
-Facade → WorkbookService exposes simple APIs over complex subsystems
-
-Command → Cell edit operations (update, insert row, delete cell)
-
-State → CellState, SheetState, CollaborationState transitions
-
-Observer → Real-time updates to UI, cursors, collaborators
-
-Adapter → External integrations (Payment, Import/Export, File parsers)
-
-Template Method → Formula evaluation pipeline (parse → validate → execute)
-
-Repository → Abstract database access (WorkbookRepo, SheetRepo)
-
-Builder → Workbook / Sheet / Cell creation with optional configs
-
-Prototype → Copy sheet / duplicate workbook
-
-Mediator → CollaborationManager coordinating users & operations
-
-Flyweight → Cell formatting reuse (fonts, styles)
-
-Decorator → Formatting layers on cells
-
-Chain of Responsibility → Formula validation & execution pipeline
-
-📦 Data Structures Used (Interview Friendly)
-
-Map<CellAddress, Cell> → Fast lookup of cells
-
-HashMap / ConcurrentHashMap → Active users, sessions, caches
-
-TreeMap / TreeSet → Ordered cells, sorted rows/columns
-
-List / ArrayList → Sheets, rows, versions
-
-Queue / Deque → Operation queue (undo/redo, OT queue)
-
-Stack → Undo / Redo history
-
-Set → Dependency tracking, visited cells
-
-Directed Graph (DAG) → Formula dependency graph
-
-Adjacency List → Efficient dependency traversal
-
-PriorityQueue → Recalculation scheduling
-
-Trie (optional) → Formula autocomplete / function lookup
-
-AST (Tree) → Parsed formula representation
-
-Linked List → Operation history chaining
-
-Bloom Filter (optional) → Fast membership checks (cache)
-
-LRU Cache → Hot cells / formula results
-
-Append-only log → Operation history / versioning
-
-Sparse Matrix → Storage optimization for empty cells
-
-JSON / Document Model → Cell storage (MongoDB style)
-
-Time-series list → Version snapshots & analytics
+🧩 Design Patterns Used
+Pattern	Where Used	Purpose
+Strategy	Formula evaluation, sorting, filtering, recalculation	Plug different algorithms dynamically
+Factory	Formula parsers, exporters (CSV/XLSX/PDF)	Centralized object creation
+Singleton	WorkbookManager, CollaborationManager, CacheManager	Ensure single shared coordinator
+Facade	WorkbookService	Simplifies access to complex subsystems
+Command	Cell update / row insert / delete operations	Encapsulates user actions
+State	CellState, SheetState, CollaborationState	Controlled state transitions
+Observer	UI updates, cursor tracking, live collaboration	Push real-time updates
+Adapter	External integrations (import/export, payment, file formats)	Interface compatibility
+Template Method	Formula execution pipeline	Shared algorithm skeleton
+Repository	WorkbookRepository, SheetRepository	Abstract persistence layer
+Builder	Workbook / Sheet / Cell creation	Safe object construction
+Prototype	Sheet / workbook duplication	Fast cloning
+Mediator	CollaborationManager	Coordinates users & operations
+Flyweight	Cell formatting styles	Memory optimization
+Decorator	Cell formatting layers	Add formatting dynamically
+Chain of Responsibility	Formula validation & execution	Sequential processing
+Observer + Pub/Sub	WebSocket collaboration	Real-time synchronization
+📦 Data Structures Used
+Component	Data Structure	Purpose
+Cells	Map<CellAddress, Cell>	O(1) lookup for any cell
+Sheet data	Sparse map / document model	Efficient storage of empty grids
+Rows / Sheets	List / ArrayList	Ordered traversal
+Active users	ConcurrentHashMap<UserId, Session>	Thread-safe collaboration
+Dependency graph	Directed Graph (Adjacency List)	Formula dependency tracking
+Dependency set	Set<CellAddress>	Prevent duplicates
+Recalculation order	Topological Sort	Correct formula evaluation
+Formula AST	Tree structure	Expression parsing
+Formula cache	LRU Cache	Faster recomputation
+Operations log	Queue / Deque	Undo / redo handling
+Version history	Append-only list	Snapshot tracking
+Change events	Event stream	Broadcasting updates
+Priority updates	PriorityQueue	Recalculation scheduling
+Formatting styles	Flyweight objects	Memory-efficient reuse
+Cell index	TreeMap / TreeSet	Sorted access
+Collaboration ops	Queue	OT / CRDT processing
+Time-series metrics	Append-only log	Analytics & monitoring
 
 ### 7.3 Database Schema
 
