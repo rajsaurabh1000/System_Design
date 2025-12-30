@@ -1,6 +1,10 @@
 # OneDrive - System Design
+<img width="4475" height="9804" alt="One_Drive" src="https://github.com/user-attachments/assets/6f93b86b-18f6-4b80-8a40-f395916c7ae9" />
+
+
 
 ## 1. Functional Requirements (FR)
+
 
 ### Core Features
 1. **File Upload/Download**
