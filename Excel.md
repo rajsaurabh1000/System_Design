@@ -726,6 +726,81 @@ Store AST, evaluate by traversing tree
 <img width="1618" height="1491" alt="image" src="https://github.com/user-attachments/assets/f3c7e548-e98d-438b-a6dd-71419eaf124d" />
 
 
+
+Design Patterns Used (Concise)
+
+Strategy → Formula evaluation strategies, sorting, filtering, recalculation logic
+
+Factory → Create Formula parsers, evaluators, exporters (CSV/XLSX/PDF)
+
+Singleton → WorkbookManager, CollaborationManager, CacheManager
+
+Facade → WorkbookService exposes simple APIs over complex subsystems
+
+Command → Cell edit operations (update, insert row, delete cell)
+
+State → CellState, SheetState, CollaborationState transitions
+
+Observer → Real-time updates to UI, cursors, collaborators
+
+Adapter → External integrations (Payment, Import/Export, File parsers)
+
+Template Method → Formula evaluation pipeline (parse → validate → execute)
+
+Repository → Abstract database access (WorkbookRepo, SheetRepo)
+
+Builder → Workbook / Sheet / Cell creation with optional configs
+
+Prototype → Copy sheet / duplicate workbook
+
+Mediator → CollaborationManager coordinating users & operations
+
+Flyweight → Cell formatting reuse (fonts, styles)
+
+Decorator → Formatting layers on cells
+
+Chain of Responsibility → Formula validation & execution pipeline
+
+📦 Data Structures Used (Interview Friendly)
+
+Map<CellAddress, Cell> → Fast lookup of cells
+
+HashMap / ConcurrentHashMap → Active users, sessions, caches
+
+TreeMap / TreeSet → Ordered cells, sorted rows/columns
+
+List / ArrayList → Sheets, rows, versions
+
+Queue / Deque → Operation queue (undo/redo, OT queue)
+
+Stack → Undo / Redo history
+
+Set → Dependency tracking, visited cells
+
+Directed Graph (DAG) → Formula dependency graph
+
+Adjacency List → Efficient dependency traversal
+
+PriorityQueue → Recalculation scheduling
+
+Trie (optional) → Formula autocomplete / function lookup
+
+AST (Tree) → Parsed formula representation
+
+Linked List → Operation history chaining
+
+Bloom Filter (optional) → Fast membership checks (cache)
+
+LRU Cache → Hot cells / formula results
+
+Append-only log → Operation history / versioning
+
+Sparse Matrix → Storage optimization for empty cells
+
+JSON / Document Model → Cell storage (MongoDB style)
+
+Time-series list → Version snapshots & analytics
+
 ### 7.3 Database Schema
 
 ```sql
