@@ -637,226 +637,49 @@ Offline Mode:
 
 ## 6. Optimizations & Approaches
 
-### 6.1 Operational Transformation (OT)
+6.1 Operational Transformation (OT)
 
-**Core Idea**: Transform concurrent operations so they can be applied in different orders but converge to same state
+OT ensures that concurrent edits from multiple users are transformed so they can be applied in any order but still converge to the same document state. It preserves user intent and guarantees consistency in real-time collaboration.
 
-**Transformation Functions**:
-```python
-def transform_insert_insert(op1, op2):
-    """Transform two concurrent inserts"""
-    if op2.position <= op1.position:
-        op1.position += len(op2.content)
-    return op1, op2
+6.2 CRDT (Alternative to OT)
 
-def transform_insert_delete(insert_op, delete_op):
-    """Transform insert against delete"""
-    if insert_op.position >= delete_op.position:
-        insert_op.position -= delete_op.length
-    return insert_op, delete_op
+CRDT assigns a unique ID to every character so operations are naturally commutative. It avoids complex transformations but increases memory usage, making it simpler but heavier than OT.
 
-def transform_delete_delete(op1, op2):
-    """Transform two concurrent deletes"""
-    # Complex: handle overlapping ranges
-    if op1.position < op2.position:
-        if op1.position + op1.length <= op2.position:
-            # No overlap
-            op2.position -= op1.length
-        else:
-            # Overlap exists
-            # Adjust both operations
-            pass
-    return op1, op2
-```
+6.3 Document Storage Optimization
 
-### 6.2 CRDT Alternative (Simpler Approach)
+Documents are split into fixed-size chunks so only modified parts are read or written. This reduces I/O, improves performance, and avoids loading large documents fully into memory.
 
-**Conflict-free Replicated Data Type**:
-- Assign unique ID to each character
-- Operations are commutative
-- Simpler than OT but more memory overhead
+6.4 Caching Strategy
 
-```javascript
-// Each character has unique ID
-{
-  id: "user1_timestamp_index",
-  char: "H",
-  visible: true
-}
+We use multi-level caching with client cache and Redis for metadata, content, and presence. Cache invalidation happens on updates via pub/sub, ensuring low latency and consistency.
 
-// Delete just marks invisible
-// Insert adds new character with unique ID
-// All operations commute
-```
+6.5 Presence Optimization
 
-### 6.3 Document Storage Optimization
+Cursor and selection updates are throttled (e.g., every 200ms) to reduce network traffic. Presence data is eventually consistent and inactive users are auto-expired.
 
-**Problem**: Large documents are expensive to load/save
-**Solution**: Chunk-based storage
+6.6 Search Optimization
 
-```python
-# Store document in chunks (1000 characters each)
-Document = {
-  id: UUID,
-  metadata: {...},
-  chunks: [
-    {id: 0, content: "first 1000 chars..."},
-    {id: 1, content: "next 1000 chars..."},
-    {id: 2, content: "..."}
-  ]
-}
+Documents are indexed in Elasticsearch with boosted fields like title and incremental async updates. Indexing is debounced and batched to reduce write overhead.
 
-# Load only visible chunks (lazy loading)
-# Update only modified chunks
-```
+6.7 Version Control Strategy
 
-### 6.4 Caching Strategy
+Snapshots are created after every N operations, while intermediate edits are stored as deltas. Older versions are pruned periodically to balance recovery and storage cost.
 
-**Multi-Level Cache**:
-1. **Client Cache**: Entire document in memory
-2. **Redis Cache**:
-   - Document metadata: 1 hour TTL
-   - Document content: 30 minutes TTL
-   - Active users list: 5 minutes TTL
-   - Operation queue: Until processed
+6.8 Database Sharding
 
-**Cache Invalidation**:
-- On save: Update cache + database
-- On collaboration: Invalidate active document cache
-- Event-driven via pub/sub
+Documents are sharded using consistent hashing on documentId to distribute load evenly. Operation logs are time-partitioned for fast writes and efficient cleanup.
 
-### 6.5 Presence Optimization
+6.9 WebSocket Connection Management
 
-**Problem**: Broadcasting every cursor move is expensive
-**Solution**:
-- Throttle cursor updates (200ms intervals)
-- Use separate channel for presence updates
-- Eventual consistency for cursors (not critical)
-- Timeout inactive users after 30s
+Sticky sessions ensure the same user connects to the same server. Redis Pub/Sub enables broadcasting edits across servers, supporting millions of concurrent users.
 
-### 6.6 Search Optimization
+6.10 Undo / Redo Handling
 
-**ElasticSearch Indexing**:
-```json
-{
-  "mappings": {
-    "properties": {
-      "title": {
-        "type": "text",
-        "boost": 3.0
-      },
-      "content": {
-        "type": "text",
-        "analyzer": "standard"
-      },
-      "ownerId": {
-        "type": "keyword"
-      },
-      "tags": {
-        "type": "keyword"
-      },
-      "updatedAt": {
-        "type": "date"
-      }
-    }
-  }
-}
-```
+Undo and redo are implemented using inverse operations stored in stacks. Each edit can be reversed safely without breaking collaborative consistency.
 
-**Incremental Indexing**:
-- Index on save (debounced)
-- Batch updates every 5 minutes
-- Async indexing worker
+6.11 Conflict Resolution
 
-### 6.7 Version Control Strategy
-
-**Snapshot Strategy**:
-- Create snapshot every N operations (e.g., 100)
-- Store delta between snapshots
-- Prune old versions after 30 days (configurable)
-
-**Example**:
-```
-Version 1 (full snapshot): "Hello World"
-Operations 2-100: stored as deltas
-Version 101 (snapshot): "Hello World, this is a long document..."
-```
-
-### 6.8 Database Sharding
-
-**Document Sharding**:
-- Shard by documentId (consistent hashing)
-- Range-based: Keeps related documents together
-- User's documents on same shard
-
-**Operation Log (Cassandra)**:
-- Partition by (documentId, timestamp)
-- Time-series data optimized
-- TTL for old operations (after snapshot)
-
-### 6.9 WebSocket Connection Management
-
-**Sticky Sessions**:
-- Use consistent hashing for WS connections
-- Same user always connects to same server
-- Redis pub/sub for cross-server broadcast
-
-**Connection Pooling**:
-- 10K connections per server
-- 100 servers = 1M concurrent connections
-- Load balance new connections
-
-### 6.10 Undo/Redo Implementation
-
-**Client-side**:
-```javascript
-class UndoManager {
-  constructor() {
-    this.undoStack = [];
-    this.redoStack = [];
-  }
-  
-  addOperation(op) {
-    this.undoStack.push(op);
-    this.redoStack = []; // Clear redo on new operation
-  }
-  
-  undo() {
-    if (this.undoStack.length === 0) return;
-    const op = this.undoStack.pop();
-    const inverseOp = this.invert(op);
-    this.redoStack.push(op);
-    return inverseOp;
-  }
-  
-  redo() {
-    if (this.redoStack.length === 0) return;
-    const op = this.redoStack.pop();
-    this.undoStack.push(op);
-    return op;
-  }
-  
-  invert(op) {
-    if (op.type === 'INSERT') {
-      return { type: 'DELETE', position: op.position, length: op.content.length };
-    } else if (op.type === 'DELETE') {
-      return { type: 'INSERT', position: op.position, content: op.deletedContent };
-    }
-  }
-}
-```
-
-### 6.11 Conflict Resolution
-
-**Scenarios**:
-1. **Two users edit same location**: OT transforms operations
-2. **One user offline, edits, comes back**: Replay operations with transformation
-3. **Network partition**: Buffer operations, sync when resolved
-
-**Resolution Strategy**:
-- Always accept both operations
-- Transform to make them compatible
-- Never reject user input (better UX)
+All edits are accepted and transformed instead of rejected. Offline or concurrent changes are merged using OT so users never lose work.
 
 ## 7. Low-Level Design (LLD)
 
