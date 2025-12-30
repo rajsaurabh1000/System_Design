@@ -1,5 +1,8 @@
 # Notepad (Collaborative Text Editor) - System Design
 
+
+<img width="4511" height="9941" alt="Notepad" src="https://github.com/user-attachments/assets/8e0df2a7-586a-4d2b-9386-f30c9d73d953" />
+
 ## 1. Functional Requirements (FR)
 
 ### Core Features
