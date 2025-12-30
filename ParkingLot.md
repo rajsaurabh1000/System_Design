@@ -1,6 +1,10 @@
 # Parking Lot System - System Design
 
+<img width="4945" height="9283" alt="Parking_Lot" src="https://github.com/user-attachments/assets/db3a5d58-94ed-44c8-839b-38ecbf9be827" />
+
+
 ## 1. Functional Requirements (FR)
+
 
 ### Core Features
 1. **Vehicle Entry**
