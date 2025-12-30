@@ -1,5 +1,8 @@
 # Netflix - System Design
 
+
+<img width="5525" height="7958" alt="Netflix(OTT)" src="https://github.com/user-attachments/assets/873c7621-c230-44fd-9eac-9aa220a0eece" />
+
 ## 1. Functional Requirements (FR)
 
 ### Core Features
