@@ -563,35 +563,37 @@ Deliberative (Planning):
 
 ## 6. Optimizations & Approaches
 
-### 6.1 SLAM Optimization
+1. SLAM (Simultaneous Localization and Mapping) Optimization: 
+ Use FastSLAM with particle filters to localize efficiently while updating the map in real time.
 
-**FastSLAM Algorithm**:
+2. Coverage Path Planning:
+ Use boustrophedon (zig-zag) or A*-based coverage to minimize overlap and ensure full area coverage.
 
-### 6.2 Coverage Path Planning
+3. Battery Management:
+ Predict remaining runtime and trigger auto-docking before battery drops below a safe threshold.
 
-**Efficient Coverage Algorithm**:
+4. Multi-Room Sequencing: 
+Order rooms using shortest-path or nearest-neighbor heuristic to reduce travel distance.
 
-### 6.3 Battery Management
+5. Dynamic Obstacle Handling:
+ Combine real-time sensor detection with reactive avoidance and path replanning.
 
-**Smart Battery Algorithm**:
+6. Carpet Detection & Boost:
+ Detect carpet via sensor feedback and dynamically increase suction power.
 
-### 6.4 Multi-Room Sequencing
+7. Error Recovery:
+ Use retry, fallback behaviors, and safe-state transitions to recover from navigation or hardware errors.
 
-**Room Ordering Strategy**:
+8. Map Storage Optimization: 
+ Store maps as sparse grids with compression to reduce memory footprint.
 
-### 6.5 Dynamic Obstacle Handling
+9. Localization Without GPS:
+ Use SLAM with LIDAR/IMU sensor fusion to estimate pose indoors.
 
-**Scenario**: Pet or person walks in front of robot
+10. Firmware Updates (OTA):
+ Perform staged, checksum-verified updates with rollback support on failure.
 
-### 6.6 Carpet Detection & Boost
 
-### 6.7 Error Recovery
-
-### 6.8 Map Storage Optimization
-
-### 6.9 Localization Without GPS
-
-### 6.10 Firmware Updates (OTA)
 
 ## 7. Low-Level Design (LLD)
 
