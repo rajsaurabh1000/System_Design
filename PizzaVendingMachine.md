@@ -663,489 +663,101 @@ Customer        Machine UI      Order Service   Payment Svc   Machine Control
 └─────────────────────────────────────────────────────────┘
 ```
 
-## 6. Optimizations & Approaches
+### 6. Optimizations & Approaches (Concise)
 
-### 6.1 Temperature Control Algorithm
+6.1 Temperature Control (PID)
 
-**PID Controller for Oven**:
-```python
-class PIDController:
-    def __init__(self, kp, ki, kd):
-        self.kp = kp  # Proportional gain
-        self.ki = ki  # Integral gain
-        self.kd = kd  # Derivative gain
-        
-        self.previous_error = 0
-        self.integral = 0
-    
-    def calculate(self, target_temp, current_temp, dt):
-        # Calculate error
-        error = target_temp - current_temp
-        
-        # Proportional term
-        P = self.kp * error
-        
-        # Integral term
-        self.integral += error * dt
-        I = self.ki * self.integral
-        
-        # Derivative term
-        derivative = (error - self.previous_error) / dt
-        D = self.kd * derivative
-        
-        # Update previous error
-        self.previous_error = error
-        
-        # Calculate control output (heating power %)
-        output = P + I + D
-        
-        # Clamp output to 0-100%
-        output = max(0, min(100, output))
-        
-        return output
+Uses a PID controller to continuously adjust heating power based on error between target and current temperature, ensuring stable and efficient cooking.
 
-# Usage
-pid = PIDController(kp=2.0, ki=0.5, kd=1.0)
+6.2 Predictive Inventory Management
 
-while cooking:
-    current_temp = read_temperature()
-    heating_power = pid.calculate(
-        target_temp=220,
-        current_temp=current_temp,
-        dt=0.1  # 100ms update rate
-    )
-    
-    set_heating_element_power(heating_power)
-    time.sleep(0.1)
-```
+Uses historical sales averages to forecast demand and auto-generate restock recommendations before inventory runs out.
 
-### 6.2 Predictive Inventory Management
+6.3 Energy Optimization
 
-**Forecast demand and auto-reorder**:
-```python
-def predict_inventory_needs(machine_id, days_ahead=7):
-    # Get historical data
-    history = get_sales_history(machine_id, days=30)
-    
-    # Calculate average daily sales per pizza type
-    daily_avg = {}
-    for pizza_id in get_pizza_types():
-        sales = [day[pizza_id] for day in history]
-        daily_avg[pizza_id] = np.mean(sales)
-    
-    # Get current inventory
-    current_inventory = get_inventory(machine_id)
-    
-    # Predict when restocking needed
-    restock_recommendations = []
-    
-    for pizza_id, avg_sales in daily_avg.items():
-        current_qty = current_inventory[pizza_id]
-        days_until_empty = current_qty / avg_sales
-        
-        if days_until_empty < days_ahead:
-            # Need to restock
-            recommended_qty = int(avg_sales * 14)  # 2 weeks supply
-            restock_recommendations.append({
-                'pizza_id': pizza_id,
-                'current_qty': current_qty,
-                'recommended_qty': recommended_qty,
-                'urgency': 'HIGH' if days_until_empty < 3 else 'MEDIUM'
-            })
-    
-    return restock_recommendations
+Dynamically adjusts oven temperature based on order queue and peak hours to reduce power consumption during idle periods.
 
-# Run daily
-schedule.every().day.at("03:00").do(
-    lambda: generate_restock_orders(predict_inventory_needs)
-)
-```
+6.4 Payment Failure Handling
 
-### 6.3 Energy Efficiency
+Implements retry with backoff, fallback states, and deferred processing to safely handle gateway or network failures.
 
-**Smart Oven Pre-heating**:
-```python
-def optimize_oven_heating(order_queue):
-    """
-    Pre-heat oven based on predicted orders
-    Save energy by turning off during idle periods
-    """
-    
-    if len(order_queue) > 0:
-        # Orders in queue, keep oven hot
-        set_oven_target_temp(220)
-    
-    elif is_peak_hour():
-        # Peak hours (lunch/dinner), keep oven warm
-        set_oven_target_temp(150)  # Standby temp
-    
-    else:
-        # Off-peak, turn off oven
-        set_oven_target_temp(0)
-    
-def is_peak_hour():
-    hour = datetime.now().hour
-    # 11am-2pm or 5pm-9pm
-    return (11 <= hour <= 14) or (17 <= hour <= 21)
-```
+6.5 Queue Management (Order Scheduling)
 
-### 6.4 Payment Failure Handling
+Uses a priority-based queue to process orders FIFO with VIP prioritization while ensuring only one active cooking job.
 
-**Robust payment processing**:
-```python
-async def process_payment(order_id, payment_details):
-    max_retries = 3
-    retry_delay = 2  # seconds
-    
-    for attempt in range(max_retries):
-        try:
-            # Call payment gateway
-            response = await payment_gateway.charge(
-                amount=order.total_amount,
-                payment_method=payment_details
-            )
-            
-            if response.status == 'SUCCESS':
-                # Payment successful
-                update_order_status(order_id, 'PAID')
-                return {'success': True, 'transaction_id': response.id}
-            
-            elif response.status == 'DECLINED':
-                # Card declined, don't retry
-                return {'success': False, 'error': 'Payment declined'}
-            
-            else:
-                # Gateway error, retry
-                if attempt < max_retries - 1:
-                    await asyncio.sleep(retry_delay)
-                    continue
-                else:
-                    return {'success': False, 'error': 'Payment processing failed'}
-        
-        except NetworkError:
-            # Network issue, retry
-            if attempt < max_retries - 1:
-                await asyncio.sleep(retry_delay)
-            else:
-                # Fallback: Mark order as pending and notify support
-                update_order_status(order_id, 'PAYMENT_PENDING')
-                notify_support(f"Payment network error for order {order_id}")
-                return {'success': False, 'error': 'Network error, order on hold'}
-```
+6.6 Anomaly Detection
 
-### 6.5 Queue Management (Multiple Orders)
+Analyzes temperature variance, cooking duration, and payment failures to detect abnormal machine behavior early.
 
-**Handle concurrent orders**:
-```python
-class OrderQueue:
-    def __init__(self):
-        self.queue = PriorityQueue()
-        self.current_order = None
-        self.max_concurrent = 1  # Only 1 pizza at a time
-    
-    def add_order(self, order):
-        # Calculate priority (FIFO but VIP can have higher priority)
-        priority = order.placed_at.timestamp()
-        if order.is_vip:
-            priority -= 1000  # Higher priority
-        
-        self.queue.put((priority, order))
-        
-        # Estimate wait time
-        position = self.queue.qsize()
-        estimated_wait = position * 300  # 5 min per pizza
-        
-        return estimated_wait
-    
-    def get_next_order(self):
-        if self.queue.empty():
-            return None
-        
-        priority, order = self.queue.get()
-        self.current_order = order
-        return order
-    
-    def complete_current_order(self):
-        self.current_order = None
+6.7 Food Safety Compliance (HACCP)
 
-# In main loop
-queue = OrderQueue()
+Tracks time spent in unsafe temperature ranges and automatically discards expired or unsafe items.
 
-while True:
-    if machine.is_idle() and not queue.is_empty():
-        order = queue.get_next_order()
-        machine.prepare_pizza(order)
-    
-    time.sleep(1)
-```
+6.8 Offline Mode Support
 
-### 6.6 Anomaly Detection
-
-**Detect equipment issues early**:
-```python
-def detect_anomalies(machine_id):
-    # Get recent metrics
-    metrics = get_machine_metrics(machine_id, hours=24)
-    
-    anomalies = []
-    
-    # Check oven temperature stability
-    oven_temps = [m['oven_temp'] for m in metrics]
-    temp_std = np.std(oven_temps)
-    if temp_std > 15:  # High variance
-        anomalies.append({
-            'type': 'OVEN_INSTABILITY',
-            'severity': 'WARNING',
-            'message': 'Oven temperature fluctuating abnormally'
-        })
-    
-    # Check cooking times
-    cook_times = [m['cook_time'] for m in metrics if m['cook_time']]
-    avg_cook_time = np.mean(cook_times)
-    if avg_cook_time > 360:  # 6 minutes (normal is 4)
-        anomalies.append({
-            'type': 'SLOW_COOKING',
-            'severity': 'WARNING',
-            'message': 'Cooking times longer than normal'
-        })
-    
-    # Check payment success rate
-    total_payments = len([m for m in metrics if m['payment_attempt']])
-    failed_payments = len([m for m in metrics if m['payment_failed']])
-    failure_rate = failed_payments / total_payments if total_payments > 0 else 0
-    
-    if failure_rate > 0.1:  # >10% failure
-        anomalies.append({
-            'type': 'PAYMENT_ISSUES',
-            'severity': 'CRITICAL',
-            'message': f'High payment failure rate: {failure_rate*100:.1f}%'
-        })
-    
-    # Create alerts
-    for anomaly in anomalies:
-        create_alert(machine_id, anomaly)
-    
-    return anomalies
-
-# Run every hour
-schedule.every().hour.do(lambda: detect_anomalies_all_machines())
-```
-
-### 6.7 Food Safety Compliance
-
-**HACCP monitoring**:
-```python
-class FoodSafetyMonitor:
-    # Temperature danger zone: 4°C to 60°C
-    DANGER_ZONE_MIN = 4
-    DANGER_ZONE_MAX = 60
-    MAX_DANGER_ZONE_TIME = 120  # minutes (2 hours)
-    
-    def __init__(self):
-        self.time_in_danger_zone = {}
-    
-    def monitor_pizza(self, pizza_id, current_temp):
-        if self.DANGER_ZONE_MIN < current_temp < self.DANGER_ZONE_MAX:
-            # Pizza in danger zone
-            if pizza_id not in self.time_in_danger_zone:
-                self.time_in_danger_zone[pizza_id] = 0
-            
-            self.time_in_danger_zone[pizza_id] += 1  # Increment minutes
-            
-            if self.time_in_danger_zone[pizza_id] > self.MAX_DANGER_ZONE_TIME:
-                # Exceeded safe time, discard pizza
-                self.discard_pizza(pizza_id, reason="Exceeded safe temperature time")
-                return False
-        else:
-            # Reset timer (either frozen or hot)
-            self.time_in_danger_zone[pizza_id] = 0
-        
-        return True
-    
-    def check_expiration_dates(self, machine_id):
-        inventory = get_inventory(machine_id)
-        expired = []
-        
-        for item in inventory:
-            if item.expiration_date <= date.today():
-                expired.append(item)
-                self.discard_pizza(item.pizza_id, reason="Expired")
-        
-        if expired:
-            notify_operator(f"{len(expired)} expired items discarded")
-    
-    def discard_pizza(self, pizza_id, reason):
-        # Mark as discarded in inventory
-        remove_from_inventory(pizza_id)
-        
-        # Log for compliance
-        log_food_safety_event({
-            'pizza_id': pizza_id,
-            'action': 'DISCARDED',
-            'reason': reason,
-            'timestamp': datetime.now()
-        })
-```
-
-### 6.8 Offline Mode
-
-**Handle network outages**:
-```python
-class OfflineMode:
-    def __init__(self):
-        self.offline = False
-        self.pending_orders = []
-        self.local_inventory = None
-    
-    def detect_network_status(self):
-        try:
-            # Ping backend
-            response = requests.get(BACKEND_URL + '/health', timeout=5)
-            self.offline = False
-        except:
-            self.offline = True
-    
-    def process_order_offline(self, order):
-        # Check local inventory cache
-        if not self.check_inventory_local(order.pizza_id):
-            return {'success': False, 'error': 'Out of stock'}
-        
-        # Accept cash only in offline mode
-        if order.payment_method != 'CASH':
-            return {'success': False, 'error': 'Only cash accepted (offline mode)'}
-        
-        # Create order locally
-        order.status = 'PENDING_SYNC'
-        self.pending_orders.append(order)
-        
-        # Proceed with cooking
-        machine.prepare_pizza(order)
-        
-        return {'success': True, 'offline_mode': True}
-    
-    def sync_when_online(self):
-        if not self.offline and self.pending_orders:
-            # Upload pending orders
-            for order in self.pending_orders:
-                try:
-                    api.create_order(order)
-                    self.pending_orders.remove(order)
-                except:
-                    pass  # Will retry next time
-```
+Allows limited offline operation using cached inventory and deferred sync once connectivity is restored.
 
 ## 7. Low-Level Design (LLD)
 
-### 7.1 Class Diagram
+<img width="2391" height="842" alt="image" src="https://github.com/user-attachments/assets/1311e962-283d-4509-a7d5-a914a0114ce6" />
 
-```
-┌──────────────────────────────────────────────────────────┐
-│                   VendingMachine                         │
-├──────────────────────────────────────────────────────────┤
-│ - machineId: UUID                                        │
-│ - status: MachineStatus                                  │
-│ - storage: StorageUnit                                   │
-│ - oven: Oven                                             │
-│ - dispenser: Dispenser                                   │
-│ - paymentProcessor: PaymentProcessor                     │
-│ - orderQueue: OrderQueue                                 │
-├──────────────────────────────────────────────────────────┤
-│ + processOrder(order: Order): void                       │
-│ + checkInventory(pizzaId: UUID): boolean                 │
-│ + cookPizza(order: Order): void                          │
-│ + dispensePizza(order: Order): void                      │
-│ + enterMaintenanceMode(): void                           │
-└──────────────────────────────────────────────────────────┘
+### Design Patterns Used (Interview-Friendly)
 
-┌──────────────────────────────────────────────────────────┐
-│                      Oven                                │
-├──────────────────────────────────────────────────────────┤
-│ - currentTemp: float                                     │
-│ - targetTemp: float                                      │
-│ - status: enum (IDLE, HEATING, COOKING, ERROR)           │
-│ - pidController: PIDController                           │
-├──────────────────────────────────────────────────────────┤
-│ + preheat(targetTemp: float): void                       │
-│ + startCooking(pizza: Pizza): CookingSession             │
-│ + monitorTemperature(): float                            │
-│ + stopCooking(): void                                    │
-│ + selfTest(): boolean                                    │
-└──────────────────────────────────────────────────────────┘
+Strategy → Swappable algorithms (path planning, inventory forecasting, scheduling)
 
-┌──────────────────────────────────────────────────────────┐
-│                   StorageUnit                            │
-├──────────────────────────────────────────────────────────┤
-│ - slots: Map<int, InventoryItem>                         │
-│ - temperature: float                                     │
-│ - capacity: int                                          │
-├──────────────────────────────────────────────────────────┤
-│ + retrievePizza(pizzaId: UUID): Pizza                    │
-│ + addPizza(pizza: Pizza, slot: int): void                │
-│ + getInventoryLevel(): Map<Pizza, int>                   │
-│ + checkExpiration(): List<InventoryItem>                 │
-└──────────────────────────────────────────────────────────┘
+State → Machine, oven, and order lifecycle management
 
-┌──────────────────────────────────────────────────────────┐
-│                   PaymentProcessor                       │
-├──────────────────────────────────────────────────────────┤
-│ - cardReader: CardReader                                 │
-│ - cashAcceptor: CashAcceptor                             │
-│ - paymentGateway: PaymentGateway                         │
-├──────────────────────────────────────────────────────────┤
-│ + processPayment(amount, method): PaymentResult          │
-│ + refund(transactionId): boolean                         │
-│ + checkConnectivity(): boolean                           │
-└──────────────────────────────────────────────────────────┘
+Command → Encapsulates order actions (start, cancel, cook, refund)
 
-┌──────────────────────────────────────────────────────────┐
-│                    Dispenser                             │
-├──────────────────────────────────────────────────────────┤
-│ - roboticArm: RoboticArm                                 │
-│ - pickupArea: PickupArea                                 │
-├──────────────────────────────────────────────────────────┤
-│ + transferPizza(from: Location, to: Location): void      │
-│ + openPickupDoor(): void                                 │
-│ + closePickupDoor(): void                                │
-│ + verifyPickup(): boolean                                │
-└──────────────────────────────────────────────────────────┘
+Factory → Creates payments, orders, or strategy implementations
 
-┌──────────────────────────────────────────────────────────┐
-│                   OrderController                        │
-├──────────────────────────────────────────────────────────┤
-│ - orderService: OrderService                             │
-│ - machine: VendingMachine                                │
-├──────────────────────────────────────────────────────────┤
-│ + createOrder(pizzaId, customer): Order                  │
-│ + processPayment(order, payment): PaymentResult          │
-│ + startCooking(order): void                              │
-│ + completeOrder(order): void                             │
-│ + cancelOrder(order, reason): void                       │
-└──────────────────────────────────────────────────────────┘
+Singleton → Central controllers (MachineManager, ConfigManager)
 
-┌──────────────────────────────────────────────────────────┐
-│                 InventoryManager                         │
-├──────────────────────────────────────────────────────────┤
-│ - inventoryService: InventoryService                     │
-│ - thresholds: Map<Pizza, int>                            │
-├──────────────────────────────────────────────────────────┤
-│ + checkStock(pizzaId): int                               │
-│ + updateInventory(pizzaId, delta: int): void             │
-│ + generateRestockOrder(): RestockOrder                   │
-│ + removeExpiredItems(): List<Item>                       │
-└──────────────────────────────────────────────────────────┘
+Facade → VendingMachine exposes a simple interface over subsystems
 
-┌──────────────────────────────────────────────────────────┐
-│               MaintenanceMonitor                         │
-├──────────────────────────────────────────────────────────┤
-│ - alertService: AlertService                             │
-│ - metricCollector: MetricCollector                       │
-├──────────────────────────────────────────────────────────┤
-│ + monitorTemperature(): void                             │
-│ + checkEquipmentStatus(): List<Alert>                    │
-│ + logMetrics(): void                                     │
-│ + detectAnomalies(): List<Anomaly>                       │
-└──────────────────────────────────────────────────────────┘
-```
+Observer / Pub-Sub → Alerts, monitoring, UI updates
+
+Adapter → Payment gateways, sensors, external APIs
+
+Template Method → Cooking, validation, and processing workflows
+
+Repository → Abstracts data persistence logic
+
+Builder → Constructs complex orders or configurations safely
+
+Chain of Responsibility → Validation → payment → cooking → dispensing
+
+Decorator → Adds behavior like logging, retries, or safety checks
+
+Flyweight → Reuse immutable objects like configurations and constants
+
+### Data Structures Used (1 line each)
+
+Map / HashMap → Fast lookup for inventory, robots, and configurations
+
+PriorityQueue → Order scheduling based on priority and arrival time
+
+Queue / Deque → Sequential order execution and buffering
+
+List / ArrayList → Store history, metrics, logs, and cleaning paths
+
+Circular Buffer → Sliding window for sensor and telemetry data
+
+Set / HashSet → Track processed or unique items (dependencies, alerts)
+
+Time-series List → Store metrics like temperature, runtime, failures
+
+Graph (Adjacency List) → Dependency or workflow relationships
+
+LRU Cache → Cache frequently accessed configs or inventory
+
+Enum → Represent safe state transitions (machine, order, oven states)
+
+Heap / Priority Queue → Scheduling, anomaly severity ranking
+
+Append-only Log → Auditing, telemetry, and event replay
+
+Polygon / Geometry List → Define no-go zones or spatial boundaries
 
 ### 7.2 Scalability Calculations
 
