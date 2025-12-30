@@ -1,5 +1,8 @@
 # Elevator System - System Design
 
+<img width="5476" height="8883" alt="Elevator_System" src="https://github.com/user-attachments/assets/dd46f3e3-2d5a-4fa0-9d94-9faade5ac797" />
+
+
 ## 1. Functional Requirements (FR)
 
 ### Core Features
