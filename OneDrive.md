@@ -579,7 +579,8 @@ Response: {
 
 ## 7. Low-Level Design (LLD)
 
-<img width="1693" height="876" alt="image" src="https://github.com/user-attachments/assets/4cc8c0a9-68aa-4446-b808-113071b76768" />
+<img width="2012" height="892" alt="image" src="https://github.com/user-attachments/assets/89062222-abd0-4992-9d38-e2cb87f04e49" />
+
 
 ### 7.2 Detailed Component Implementation
 
