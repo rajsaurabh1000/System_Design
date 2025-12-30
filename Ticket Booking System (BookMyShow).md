@@ -351,56 +351,8 @@ Send Notification (Kafka → Email/SMS)
 
 ## 6. Low-Level Design (LLD)
 
-### 6.1 Class Diagram
+<img width="890" height="872" alt="image" src="https://github.com/user-attachments/assets/f7beab27-4baf-44e4-81e7-7a13a2809847" />
 
-```
-┌────────────┐         ┌────────────┐         ┌────────────┐
-│   User     │         │   Event    │         │   Venue    │
-├────────────┤         ├────────────┤         ├────────────┤
-│ userId     │         │ eventId    │         │ venueId    │
-│ email      │         │ title      │         │ name       │
-│ phone      │         │ category   │         │ city       │
-└─────┬──────┘         └──────┬─────┘         └──────┬─────┘
-      │                       │                       │
-      │ 1:N                   │ 1:N                   │ 1:N
-      │                       │                       │
-      ▼                       ▼                       ▼
-┌────────────┐         ┌────────────┐         ┌────────────┐
-│  Booking   │◄────────│    Show    │         │  Section   │
-├────────────┤   N:1   ├────────────┤         ├────────────┤
-│ bookingId  │         │ showId     │◄────────│ sectionId  │
-│ userId     │         │ eventId    │   N:1   │ venueId    │
-│ showId     │         │ sectionId  │         │ name       │
-│ status     │         │ startTime  │         └──────┬─────┘
-│ totalAmt   │         │ pricing    │                │
-└─────┬──────┘         └──────┬─────┘                │ 1:N
-      │                       │                       │
-      │ 1:1                   │ 1:N                   ▼
-      │                       │              ┌────────────┐
-      ▼                       │              │    Seat    │
-┌────────────┐               │              ├────────────┤
-│  Payment   │               │              │ seatId     │
-├────────────┤               │              │ sectionId  │
-│ paymentId  │               │              │ seatNumber │
-│ bookingId  │               │              │ type       │
-│ amount     │               │              └──────┬─────┘
-│ status     │               │                     │
-│ idempKey   │               │                     │ 1:N
-└────────────┘               │                     │
-                             ▼                     ▼
-                      ┌────────────┐         ┌────────────┐
-                      │ ShowSeat   │◄────────│            │
-                      ├────────────┤         │            │
-                      │showSeatId  │         │            │
-                      │ showId     │         │            │
-                      │ seatId     │         │            │
-                      │ status     │         │            │
-                      │ price      │         │            │
-                      │ lockedBy   │         │            │
-                      │ lockExpiry │         │            │
-                      │ version    │         │            │
-                      └────────────┘         └────────────┘
-```
 
 ### 6.2 Sequence Diagram - Complete Booking Flow
 
