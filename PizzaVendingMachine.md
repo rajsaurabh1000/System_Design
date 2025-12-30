@@ -1,5 +1,8 @@
 # Pizza Vending Machine - System Design
 
+<img width="4583" height="8777" alt="Pizza_Vending_Machine2" src="https://github.com/user-attachments/assets/3ac0ecb0-70d5-4335-8e3f-43bd29972c2b" />
+
+
 ## 1. Functional Requirements (FR)
 
 ### Core Features
