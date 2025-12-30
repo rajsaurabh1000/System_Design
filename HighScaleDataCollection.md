@@ -1,5 +1,8 @@
 # High Scale Data Collection System - System Design
 
+<img width="4635" height="10385" alt="High_Scale_Data_Collection" src="https://github.com/user-attachments/assets/9efb9744-83bf-41fd-96d9-db0cd1b52904" />
+
+
 ## 1. Functional Requirements (FR)
 
 ### Core Features
