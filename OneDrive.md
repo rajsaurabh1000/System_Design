@@ -582,385 +582,63 @@ Response: {
 <img width="2012" height="892" alt="image" src="https://github.com/user-attachments/assets/89062222-abd0-4992-9d38-e2cb87f04e49" />
 
 
-### 7.2 Detailed Component Implementation
+### Design Patterns Used (Short Interview Lines)
 
-#### 7.2.1 Upload Service
+Factory → Creates upload sessions, metadata objects, version entities
 
-```java
-public class UploadService {
-    private static final int CHUNK_SIZE = 4 * 1024 * 1024; // 4MB
-    private final StorageManager storageManager;
-    private final MetadataService metadataService;
-    private final DeduplicationService deduplicationService;
-    private final QuotaManager quotaManager;
-    
-    public UploadResponse initiateUpload(
-        String userId,
-        String fileName,
-        long fileSize,
-        String checksum
-    ) {
-        // 1. Validate user quota
-        if (!quotaManager.hasSpace(userId, fileSize)) {
-            throw new QuotaExceededException();
-        }
-        
-        // 2. Check for deduplication
-        String existingFileLocation = 
-            deduplicationService.findByChecksum(checksum);
-        
-        if (existingFileLocation != null) {
-            // File already exists, just create metadata
-            FileMetadata metadata = metadataService.createMetadata(
-                userId, fileName, fileSize, existingFileLocation
-            );
-            deduplicationService.incrementRefCount(checksum);
-            return new UploadResponse(metadata.getFileId(), true);
-        }
-        
-        // 3. Generate upload session
-        String uploadId = UUID.randomUUID().toString();
-        int totalChunks = (int) Math.ceil((double) fileSize / CHUNK_SIZE);
-        
-        // 4. Generate pre-signed URLs for each chunk
-        List<ChunkUploadUrl> chunkUrls = new ArrayList<>();
-        for (int i = 0; i < totalChunks; i++) {
-            String url = storageManager.generatePreSignedUploadUrl(
-                uploadId, i, CHUNK_SIZE
-            );
-            chunkUrls.add(new ChunkUploadUrl(i, url));
-        }
-        
-        // 5. Store upload session
-        UploadSession session = new UploadSession(
-            uploadId, userId, fileName, fileSize, totalChunks
-        );
-        cacheManager.setUploadSession(uploadId, session, 3600); // 1 hour TTL
-        
-        return new UploadResponse(uploadId, chunkUrls, false);
-    }
-    
-    public void completeUpload(String uploadId, String userId) {
-        UploadSession session = cacheManager.getUploadSession(uploadId);
-        
-        if (session == null || !session.getUserId().equals(userId)) {
-            throw new InvalidUploadSessionException();
-        }
-        
-        // 1. Verify all chunks uploaded
-        if (!storageManager.verifyAllChunks(uploadId, session.getTotalChunks())) {
-            throw new IncompleteUploadException();
-        }
-        
-        // 2. Combine chunks into final file
-        String finalLocation = storageManager.combineChunks(uploadId);
-        
-        // 3. Verify checksum
-        String actualChecksum = storageManager.calculateChecksum(finalLocation);
-        if (!actualChecksum.equals(session.getExpectedChecksum())) {
-            storageManager.deleteFile(finalLocation);
-            throw new ChecksumMismatchException();
-        }
-        
-        // 4. Create metadata
-        FileMetadata metadata = metadataService.createFile(
-            userId,
-            session.getFileName(),
-            session.getFileSize(),
-            finalLocation,
-            actualChecksum
-        );
-        
-        // 5. Update deduplication index
-        deduplicationService.addFile(actualChecksum, finalLocation);
-        
-        // 6. Trigger sync
-        syncService.notifyFileChange(userId, metadata.getFileId(), "CREATED");
-        
-        // 7. Cleanup upload session
-        cacheManager.deleteUploadSession(uploadId);
-    }
-}
-```
+Singleton → Cache manager, configuration manager
 
-#### 7.2.2 Sync Service
+Repository → Abstracts DB access for files, folders, versions
 
-```java
-public class SyncService {
-    private final MetadataService metadataService;
-    private final MessageQueue messageQueue;
-    private final ConflictResolver conflictResolver;
-    
-    public SyncResponse getChanges(
-        String userId,
-        String deviceId,
-        long lastSyncTimestamp
-    ) {
-        // 1. Get all changes since last sync
-        List<FileChange> changes = metadataService.getChangesSince(
-            userId, lastSyncTimestamp
-        );
-        
-        // 2. Filter out changes originating from this device
-        changes = changes.stream()
-            .filter(c -> !c.getSourceDeviceId().equals(deviceId))
-            .collect(Collectors.toList());
-        
-        // 3. Detect conflicts
-        List<Conflict> conflicts = conflictResolver.detectConflicts(
-            deviceId, changes
-        );
-        
-        // 4. Return changes and conflicts
-        return new SyncResponse(
-            changes,
-            conflicts,
-            System.currentTimeMillis()
-        );
-    }
-    
-    public void notifyFileChange(
-        String userId,
-        String fileId,
-        String operation
-    ) {
-        FileChange change = new FileChange(
-            fileId,
-            userId,
-            operation,
-            System.currentTimeMillis()
-        );
-        
-        // Publish to message queue for async processing
-        messageQueue.publish("file-changes", change);
-    }
-    
-    public void processFileChange(FileChange change) {
-        // 1. Get all devices for user
-        List<Device> devices = metadataService.getUserDevices(
-            change.getUserId()
-        );
-        
-        // 2. Queue sync tasks for each device
-        for (Device device : devices) {
-            if (!device.getId().equals(change.getSourceDeviceId())) {
-                SyncTask task = new SyncTask(
-                    device.getId(),
-                    change.getFileId(),
-                    change.getOperation()
-                );
-                syncQueue.enqueue(task);
-            }
-        }
-    }
-}
+Strategy → Different sync, conflict-resolution, and dedup strategies
 
-public class ConflictResolver {
-    
-    public List<Conflict> detectConflicts(
-        String deviceId,
-        List<FileChange> changes
-    ) {
-        List<Conflict> conflicts = new ArrayList<>();
-        
-        for (FileChange serverChange : changes) {
-            // Check if device has local changes for same file
-            FileChange localChange = getLocalChange(deviceId, serverChange.getFileId());
-            
-            if (localChange != null && 
-                localChange.getTimestamp() > serverChange.getTimestamp()) {
-                conflicts.add(new Conflict(
-                    serverChange.getFileId(),
-                    localChange,
-                    serverChange
-                ));
-            }
-        }
-        
-        return conflicts;
-    }
-    
-    public Resolution resolveConflict(Conflict conflict) {
-        // Strategy: Last-Write-Wins with conflict copy
-        FileChange local = conflict.getLocalChange();
-        FileChange server = conflict.getServerChange();
-        
-        if (local.getTimestamp() > server.getTimestamp()) {
-            // Local wins, create conflict copy of server version
-            return new Resolution(
-                ResolutionType.LOCAL_WINS,
-                createConflictCopy(server)
-            );
-        } else {
-            // Server wins, create conflict copy of local version
-            return new Resolution(
-                ResolutionType.SERVER_WINS,
-                createConflictCopy(local)
-            );
-        }
-    }
-    
-    private File createConflictCopy(FileChange change) {
-        File original = metadataService.getFile(change.getFileId());
-        String conflictName = generateConflictName(
-            original.getName(),
-            change.getSourceDeviceId()
-        );
-        
-        return metadataService.copyFile(
-            original.getId(),
-            conflictName
-        );
-    }
-    
-    private String generateConflictName(String fileName, String deviceId) {
-        String name = fileName.substring(0, fileName.lastIndexOf('.'));
-        String ext = fileName.substring(fileName.lastIndexOf('.'));
-        return String.format("%s (conflicted copy %s)%s", 
-            name, deviceId, ext);
-    }
-}
-```
+Observer (Pub/Sub) → Notify devices of file changes in real time
 
-#### 7.2.3 Metadata Service
+Command → Upload, delete, move, restore operations
 
-```java
-public class MetadataService {
-    private final FileRepository fileRepository;
-    private final FolderRepository folderRepository;
-    private final CacheManager cacheManager;
-    
-    public FileMetadata createFile(
-        String userId,
-        String fileName,
-        long fileSize,
-        String storageLocation,
-        String checksum
-    ) {
-        FileMetadata metadata = FileMetadata.builder()
-            .fileId(UUID.randomUUID().toString())
-            .name(fileName)
-            .ownerId(userId)
-            .size(fileSize)
-            .storageLocation(storageLocation)
-            .checksum(checksum)
-            .version(1)
-            .createdAt(Instant.now())
-            .updatedAt(Instant.now())
-            .build();
-        
-        // Save to database
-        fileRepository.save(metadata);
-        
-        // Cache metadata
-        cacheManager.setFileMetadata(metadata.getFileId(), metadata, 1800);
-        
-        return metadata;
-    }
-    
-    public FileMetadata getFileMetadata(String fileId) {
-        // Try cache first
-        FileMetadata cached = cacheManager.getFileMetadata(fileId);
-        if (cached != null) {
-            return cached;
-        }
-        
-        // Fetch from database
-        FileMetadata metadata = fileRepository.findById(fileId)
-            .orElseThrow(() -> new FileNotFoundException(fileId));
-        
-        // Update cache
-        cacheManager.setFileMetadata(fileId, metadata, 1800);
-        
-        return metadata;
-    }
-    
-    public List<Resource> listFolder(
-        String folderId,
-        String userId,
-        int page,
-        int limit
-    ) {
-        // Check permissions
-        if (!permissionManager.hasAccess(userId, folderId, AccessLevel.VIEW)) {
-            throw new AccessDeniedException();
-        }
-        
-        // Try cache first
-        String cacheKey = String.format("folder:%s:page:%d", folderId, page);
-        List<Resource> cached = cacheManager.getFolderContents(cacheKey);
-        if (cached != null) {
-            return cached;
-        }
-        
-        // Fetch from database
-        List<File> files = fileRepository.findByParentFolderId(
-            folderId, page, limit
-        );
-        List<Folder> folders = folderRepository.findByParentFolderId(
-            folderId, page, limit
-        );
-        
-        List<Resource> resources = new ArrayList<>();
-        resources.addAll(files);
-        resources.addAll(folders);
-        
-        // Cache results
-        cacheManager.setFolderContents(cacheKey, resources, 1800);
-        
-        return resources;
-    }
-    
-    public List<FileChange> getChangesSince(
-        String userId,
-        long timestamp
-    ) {
-        return fileRepository.findChangesSince(userId, timestamp);
-    }
-}
-```
+Facade → API Gateway exposes a unified interface
 
-#### 7.2.4 Deduplication Service
+Decorator → Adds compression, encryption layers
 
-```java
-public class DeduplicationService {
-    private final FileHashRepository hashRepository;
-    private final StorageManager storageManager;
-    
-    public String findByChecksum(String checksum) {
-        return hashRepository.findLocationByChecksum(checksum)
-            .orElse(null);
-    }
-    
-    public void addFile(String checksum, String location) {
-        FileHash hash = FileHash.builder()
-            .checksum(checksum)
-            .storageLocation(location)
-            .referenceCount(1)
-            .createdAt(Instant.now())
-            .build();
-        
-        hashRepository.save(hash);
-    }
-    
-    public void incrementRefCount(String checksum) {
-        hashRepository.incrementRefCount(checksum);
-    }
-    
-    public void deleteFile(String checksum) {
-        FileHash hash = hashRepository.findByChecksum(checksum)
-            .orElseThrow();
-        
-        int newCount = hashRepository.decrementRefCount(checksum);
-        
-        // If no more references, delete physical file
-        if (newCount == 0) {
-            storageManager.deleteFile(hash.getStorageLocation());
-            hashRepository.delete(checksum);
-        }
-    }
-}
-```
+Builder → Constructs complex metadata and responses
+
+Chain of Responsibility → Validation → quota → dedup → upload pipeline
+
+Adapter → Integrates storage providers (S3, Azure Blob, GCS)
+
+Prototype → Used for version cloning and conflict copies
+
+### Core Data Structures (One-liners – Interview Friendly)
+
+File metadata store → HashMap / DB index – Fast lookup by fileId
+
+Folder hierarchy → Tree / Adjacency List – Represents nested folders
+
+Permissions → Map<ResourceId, List<Permission>> – Fast access control checks
+
+Version history → List / Append-only log – Tracks file evolution
+
+Sync queue → Queue / PriorityQueue – Manages pending device sync tasks
+
+Dedup index → HashMap<Checksum, Location> – Enables content-based reuse
+
+Search index → Inverted Index – Fast full-text search
+
+Cache → LRU Cache – Stores frequently accessed metadata
+
+Delta blocks → Map<BlockHash, BlockData> – Efficient diff-based sync
+
+Device registry → Map<DeviceId, Device> – Tracks active devices
+
+Event stream → Append-only log (Kafka) – Async propagation of changes
+
+Permissions lookup → HashMap – O(1) access control validation
+
+Version comparison → Directed Graph – Handles version lineage
+
+Conflict tracking → Set / Map – Detects concurrent edits
+
+Quota tracking → Counter + Atomic updates – Enforces storage limits
 
 ### 7.3 Database Schema
 
@@ -1106,72 +784,8 @@ CREATE TABLE sync_queue (
 ### 7.4 Key Algorithms
 
 #### 7.4.1 Chunking Algorithm
-```python
-def chunk_file(file_path, chunk_size=4*1024*1024):
-    """Split file into chunks for upload"""
-    chunks = []
-    with open(file_path, 'rb') as f:
-        chunk_number = 0
-        while True:
-            chunk_data = f.read(chunk_size)
-            if not chunk_data:
-                break
-            
-            chunk = {
-                'number': chunk_number,
-                'data': chunk_data,
-                'size': len(chunk_data),
-                'checksum': hashlib.md5(chunk_data).hexdigest()
-            }
-            chunks.append(chunk)
-            chunk_number += 1
-    
-    return chunks
-```
 
 #### 7.4.2 Delta Sync Algorithm (simplified rsync)
-```python
-def calculate_delta(old_file, new_file, block_size=4096):
-    """Calculate delta between two file versions"""
-    # 1. Calculate rolling hash for old file blocks
-    old_blocks = {}
-    with open(old_file, 'rb') as f:
-        block_num = 0
-        while True:
-            block = f.read(block_size)
-            if not block:
-                break
-            block_hash = hashlib.md5(block).hexdigest()
-            old_blocks[block_hash] = (block_num, block)
-            block_num += 1
-    
-    # 2. Find matching blocks in new file
-    delta = []
-    with open(new_file, 'rb') as f:
-        new_data = f.read()
-    
-    i = 0
-    while i < len(new_data):
-        block = new_data[i:i+block_size]
-        block_hash = hashlib.md5(block).hexdigest()
-        
-        if block_hash in old_blocks:
-            # Block unchanged, reference old block
-            delta.append({
-                'type': 'reference',
-                'block_num': old_blocks[block_hash][0]
-            })
-            i += block_size
-        else:
-            # New data, include in delta
-            delta.append({
-                'type': 'data',
-                'data': block
-            })
-            i += block_size
-    
-    return delta
-```
 
 ### 7.5 Scalability Calculations
 
