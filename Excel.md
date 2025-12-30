@@ -726,45 +726,50 @@ Store AST, evaluate by traversing tree
 <img width="1618" height="1491" alt="image" src="https://github.com/user-attachments/assets/f3c7e548-e98d-438b-a6dd-71419eaf124d" />
 
 
+## Design Patterns Used
 
-🧩 Design Patterns Used
-Pattern	Where Used	Purpose
-Strategy	Formula evaluation, sorting, filtering, recalculation	Plug different algorithms dynamically
-Factory	Formula parsers, exporters (CSV/XLSX/PDF)	Centralized object creation
-Singleton	WorkbookManager, CollaborationManager, CacheManager	Ensure single shared coordinator
-Facade	WorkbookService	Simplifies access to complex subsystems
-Command	Cell update / row insert / delete operations	Encapsulates user actions
-State	CellState, SheetState, CollaborationState	Controlled state transitions
-Observer	UI updates, cursor tracking, live collaboration	Push real-time updates
-Adapter	External integrations (import/export, payment, file formats)	Interface compatibility
-Template Method	Formula execution pipeline	Shared algorithm skeleton
-Repository	WorkbookRepository, SheetRepository	Abstract persistence layer
-Builder	Workbook / Sheet / Cell creation	Safe object construction
-Prototype	Sheet / workbook duplication	Fast cloning
-Mediator	CollaborationManager	Coordinates users & operations
-Flyweight	Cell formatting styles	Memory optimization
-Decorator	Cell formatting layers	Add formatting dynamically
-Chain of Responsibility	Formula validation & execution	Sequential processing
-Observer + Pub/Sub	WebSocket collaboration	Real-time synchronization
-📦 Data Structures Used
-Component	Data Structure	Purpose
-Cells	Map<CellAddress, Cell>	O(1) lookup for any cell
-Sheet data	Sparse map / document model	Efficient storage of empty grids
-Rows / Sheets	List / ArrayList	Ordered traversal
-Active users	ConcurrentHashMap<UserId, Session>	Thread-safe collaboration
-Dependency graph	Directed Graph (Adjacency List)	Formula dependency tracking
-Dependency set	Set<CellAddress>	Prevent duplicates
-Recalculation order	Topological Sort	Correct formula evaluation
-Formula AST	Tree structure	Expression parsing
-Formula cache	LRU Cache	Faster recomputation
-Operations log	Queue / Deque	Undo / redo handling
-Version history	Append-only list	Snapshot tracking
-Change events	Event stream	Broadcasting updates
-Priority updates	PriorityQueue	Recalculation scheduling
-Formatting styles	Flyweight objects	Memory-efficient reuse
-Cell index	TreeMap / TreeSet	Sorted access
-Collaboration ops	Queue	OT / CRDT processing
-Time-series metrics	Append-only log	Analytics & monitoring
+| Pattern                        | Used In                                                     | Purpose                                              |
+| ------------------------------ | ----------------------------------------------------------- | ---------------------------------------------------- |
+| **Strategy**                   | Formula evaluation, sorting, filtering, recalculation logic | Allows swapping algorithms without modifying callers |
+| **Factory**                    | FormulaParserFactory, ExportFactory                         | Centralizes object creation logic                    |
+| **Singleton**                  | WorkbookManager, CollaborationManager, CacheManager         | Ensures a single global coordinator                  |
+| **Facade**                     | `WorkbookService`                                           | Provides a unified API over complex subsystems       |
+| **Command**                    | Cell update, row insert/delete operations                   | Encapsulates user actions (undo/redo support)        |
+| **State**                      | CellState, SheetState, CollaborationState                   | Manages lifecycle transitions safely                 |
+| **Observer**                   | UI updates, cursor tracking, live collaboration             | Push-based real-time updates                         |
+| **Adapter**                    | Import/Export adapters, external integrations               | Makes incompatible APIs work together                |
+| **Template Method**            | Formula evaluation pipeline                                 | Defines algorithm skeleton with overridable steps    |
+| **Repository**                 | WorkbookRepository, SheetRepository                         | Abstracts persistence layer                          |
+| **Builder**                    | WorkbookBuilder, CellBuilder                                | Safe construction of complex objects                 |
+| **Prototype**                  | Sheet duplication, workbook cloning                         | Fast object copying                                  |
+| **Mediator**                   | CollaborationManager                                        | Coordinates user operations centrally                |
+| **Flyweight**                  | Cell formatting styles                                      | Reduces memory footprint                             |
+| **Decorator**                  | Cell formatting layers                                      | Adds formatting dynamically                          |
+| **Chain of Responsibility**    | Formula validation & execution steps                        | Sequential processing pipeline                       |
+| **Pub/Sub (Observer variant)** | WebSocket event broadcasting                                | Scalable collaboration updates                       |
+
+
+## Data Structures Used
+| Component                | Data Structure                       | Reason                           |
+| ------------------------ | ------------------------------------ | -------------------------------- |
+| Cells                    | `Map<CellAddress, Cell>`             | O(1) lookup by cell reference    |
+| Sheet storage            | Sparse map / document model          | Efficient for mostly empty grids |
+| Rows & sheets            | `List` / `ArrayList`                 | Ordered traversal                |
+| Active users             | `ConcurrentHashMap<UserId, Session>` | Thread-safe access               |
+| Dependency graph         | Directed Graph (Adjacency List)      | Formula dependency resolution    |
+| Dependency tracking      | `Set<CellAddress>`                   | Avoid duplicate edges            |
+| Formula evaluation order | Topological Sort                     | Correct recomputation order      |
+| Formula AST              | Tree                                 | Expression parsing & evaluation  |
+| Formula cache            | LRU Cache                            | Faster repeated calculations     |
+| Operation history        | Queue / Deque                        | Undo / redo support              |
+| Version history          | Append-only list                     | Snapshot tracking                |
+| Collaboration ops        | Queue                                | OT / CRDT processing             |
+| Priority recalculation   | PriorityQueue                        | Efficient scheduling             |
+| Formatting styles        | Flyweight objects                    | Memory optimization              |
+| Sorted access            | TreeMap / TreeSet                    | Ordered iteration                |
+| Event streaming          | Append-only log                      | Real-time updates                |
+| Metrics storage          | Time-series list                     | Analytics & monitoring           |
+
 
 ### 7.3 Database Schema
 
