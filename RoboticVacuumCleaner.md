@@ -1,5 +1,8 @@
 # Robotic Vacuum Cleaner - System Design
 
+<img width="4609" height="8874" alt="Robotic_Vacuum_Cleaner" src="https://github.com/user-attachments/assets/a1622ade-971c-42f1-bf47-40f369171b1a" />
+
+
 ## 1. Functional Requirements (FR)
 
 ### Core Features
