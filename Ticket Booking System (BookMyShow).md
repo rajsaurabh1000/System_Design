@@ -1,5 +1,8 @@
 
-# Ticket Booking System (BookMyShow) - System Design
+# Movie Ticket Booking System (BookMyShow) - System Design
+
+<img width="4698" height="8415" alt="Movie_Ticket_Booking_System" src="https://github.com/user-attachments/assets/6514b764-a7e3-4ea3-97a7-d69486687901" />
+
 
 ## 1. Functional Requirements (FR)
 
